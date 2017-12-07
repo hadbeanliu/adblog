@@ -1,0 +1,681 @@
+<template>
+	<div class="detail" :class="{open: detailState}">
+		<a class="close" @click="closeAr()">×</a>
+		<article class="content" :class="{compare: isCompare}" ref="arContent">
+			<h3>{{getArticle("title").value}}</h3>
+			<div class="row">
+				<div class="large-24 columns">
+					<div class="transverse">
+						<li class="clearfix">
+							<div class="img"><img :src="getArticle('arThumb').value" :alt='getArticle("title_title")'></div>
+							<div class="content">
+								<div>标题：<i title="自动投递" :class="{autoFlag:showVote,fa:showVote, 'fa-adn':showVote}" aria-hidden="true"></i> <span>{{getArticle('title')}}</span>
+                </div>
+								<div class="author">作者：<span>{{getArticle('author')}}</span></div>
+								<div class="source margin-l20">来源：<span>{{getArticle('source')}}</span></div>
+
+								<div>创建时间：<span title="文章原始时间">{{getArticle('createTime') | dateTime}}</span>&nbsp;&nbsp;&nbsp;发布时间：<span title="文章发布时间">{{getArticle('pubDate') | dateTime}}</span></div>
+								<div>标签：<span>{{getArticle('tags')}}</span></div>
+								<!--<a class="button tiny success float-left no-margin" @click="participlesbtn()">切 词</a>-->
+                <div class="participles">切词：</div><lg-switch v-model="isSwitch" on-color="#13ce66" off-color="#ff4949"></lg-switch>
+								<div class="hideparticipleslist" :class="{showparticipleslist:isSwitch}">
+									<lg-checkbox-group v-model="checkList">
+										<lg-checkbox class="name" label="人名" @change="showWordColor('nrshow')"></lg-checkbox>
+										<lg-checkbox class="place" label="地名" @change="showWordColor('nsshow')"></lg-checkbox>
+										<lg-checkbox class="org" label="机构" @change="showWordColor('ntshow')"></lg-checkbox>
+										<lg-checkbox class="product" label="作品" @change="showWordColor('npshow')"></lg-checkbox>
+                    <lg-checkbox class="fw" label="存疑词" @change="showWordColor('fwshow')"></lg-checkbox>
+									</lg-checkbox-group>
+								</div>
+							</div>
+						</li>
+					</div>
+				</div>
+				<!--<div class="large-4 columns">
+					<title>系统评分</title>
+					<div class="warning-color" style="font-size: 24px;">4 分</div>
+					<div><a class="success-color" href="" target="_blank">查看原文</a></div>
+				</div>-->
+			</div>
+			<div class="article-con row" :class="{nr:nrshow,ns:nsshow,nt:ntshow,np:npshow,fw:fwshow,tagFlag:isSwitch}">
+				<div class="large-24 columns" @mouseup="mouseUp()" v-html="getArticle('content')">
+				</div>
+			</div>
+			<!--切词操作区-->
+			<div id='tagtools' class='tagtools' v-show="showTagTools" :class="{hide:!detailState}" :style="showTagTools ? tagtoolsStyle : ''">
+				<div class="showTagTools">
+					<div class="header">
+						<input class="splitword" v-model="participles"></input>
+						<span class="wordspeech">{{wordSpeech}}</span>
+						<a class="close" @click="closeTagTools()">×</a>
+					</div>
+					<ul id="tagList" class="clearfix wordList">
+						<li @click="selectedTag(tag)" v-for="(tag,index) in getTagsKeys()" :key="tag" :class="{active:isCheckTag(tag)}">
+							<a>{{tag}}</a>
+						</li>
+            <li>
+              <a @click="delWord()"> 移 除 </a>
+            </li>
+					</ul>
+					<div class="tagtoolsFooter clearfix">
+						<div class="text-center">
+							<a class="button hollow radius secondary small" @click="newTag()"> 标 签 </a>
+							<lg-button :loading="submiting" class="small button radius" @click="commitWord"> 提 交 </lg-button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</article>
+		<article class="content compare relativeAr" v-if="compareShow">
+			<h3>{{compare("title").value}}</h3>
+			<div class="close" @click="removeCp">×</div>
+			<div class="row">
+				<div class="large-18 columns">
+					<div class="transverse">
+						<li class="clearfix">
+							<div class="img"><img :src="getArticle('image_title')" :alt='getArticle("title").value'></div>
+							<div class="content">
+								<div>作者：
+									<a href="#">{{compare('author').value}}</a>
+								</div>
+								<div>来源：
+									<a href="#">{{compare('source').value}}</a>
+								</div>
+								<div>发布时间：
+									<a href="#">{{compare('pubDate').value | dateTime}}</a>
+								</div>
+								<div>标签：<span class="lg-tag" href="#" v-for='tag in article.tags.split(" , ")'>{{tag.value}}</span></div>
+							</div>
+						</li>
+					</div>
+				</div>
+				<div class="large-4 columns">
+					<title>系统评分</title>
+					<div class="warning-color" style="font-size: 24px;">{{getArticle('score')}}</div>
+				</div>
+			</div>
+			<div class="article-con row">
+				<div class="large-24 columns">
+					{{getArticle('content')}}
+				</div>
+			</div>
+		</article>
+		<div class="row" v-else>
+			<div class="large-24 column">
+				<ul class="info_list">
+					<li>
+						<a>德化县完成地震监测设施网络升级改造</a>
+						<span class="cp" @click="beCompare">对比</span>
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</template>
+<script>
+	import { mapState } from 'vuex'
+	import LgButton from '@/components/button'
+	import LgCheckbox from '../../components/checkbox'
+    import LgCheckboxGroup from '@/components/checkbox-group'
+	import LgSwitch from '../../components/switch'
+	export default {
+		data() {
+			return {
+				openAr: false,
+				isCompare: false,
+				compareShow: false,
+//				取词
+				participles: '',
+				showTagTools: false,
+				tooltipTop: 10,
+				tooltipLeft: 10,
+				submiting: false,
+        addTags:[],
+				tags: {
+					'未知词性': 'null',
+					'人名': 'nr',
+					'地名': 'ns',
+					'机构': 'nt',
+					'作品': 'np',
+					'专有名词': 'nz',
+					'动词': 'v',
+					'形容词': 'a',
+					'量词': 'mq',
+          '违禁词': 'fw'
+				},
+//        选中的词库
+				activeTag: [],
+//        词性
+				wordSpeech: '',
+//        是否分词
+				isSplit: false,
+//				switch
+				isSwitch: true,
+//				多选框
+				checkList: ['人名', '地名', '机构', '作品', '违禁库'],
+        nrshow:true,
+        nsshow:true,
+        ntshow:true,
+        npshow:true,
+        fwshow:true
+			}
+		},
+		props: {
+			open: {
+				type: Boolean,
+				default: false
+			}
+		},
+		computed: {
+			...mapState({
+				article: state => state.detaliArticle,
+				detailState: state => state.detailState,
+        addTag: state => state.addTag,
+        split: state => state.split,
+        showVote: state => state.showVote
+			}),
+			tagtoolsStyle() {
+				let style = {
+					top: this.tooltipTop + 'px',
+					left: this.tooltipLeft + 'px',
+					position: 'absolute'
+				}
+				return style
+			}
+		},
+		watch: {
+			article (nv, ov) {
+				this.showTagTools = false
+				if(nv.id !== ov.id) {
+          this.$el.children[1].scrollTop = 0
+				}
+			},
+      isSwitch (nv, ov) {
+        this.participlesbtn()
+      }
+		},
+		mounted() {
+			Object.keys(this.tags).forEach(function(data) {
+//		     console.log(data)
+			})
+		},
+		methods: {
+		  addTag(tag){
+		    this.article.addTag = tag
+      },
+			getTagsKeys() {
+				return Object.keys(this.tags)
+			},
+			getArticle(type) {
+				return this.article[type] ? this.article[type] : ''
+			},
+			compare(type) {
+				return this.article[type] ? this.article[type] : ''
+			},
+			beCompare() {
+				this.isCompare = true
+				this.compareShow = true
+			},
+			removeCp() {
+				this.isCompare = false
+				this.compareShow = false
+			},
+			arOpen() {
+				return this.openAr = this.open
+			},
+			closeAr() {
+				this.$store.dispatch('ENSURE_DETAIL', {
+					open: false
+				})
+//              this.isSwitch = false
+			},
+			closeTagTools() {
+				this.showTagTools = false
+				this.submiting = false
+				this.activeTag = []
+			},
+//      选择词性
+			isCheckTag(tag) {
+				let hasTag = false
+				for(let t in this.activeTag) {
+					if(this.activeTag[t] === tag) {
+						hasTag = true
+						break
+					}
+				}
+				return hasTag
+			},
+			selectedTag(tag) {
+				let hasTag = false
+				for(let t in this.activeTag) {
+					if(this.activeTag[t] === tag) {
+						this.activeTag.splice(t, 1)
+						hasTag = true
+						break
+					}
+				}
+				if(!hasTag) {
+					this.activeTag.push(tag)
+				}
+			},
+//			划词
+			mouseUp() {
+                this.submiting = false
+                this.activeTag = []
+				var [e, x, y, word] = [window.event, 0, -45, '']
+				if(document.selection) {
+					word = document.selection.createRange().text
+				} else if(window.getSelection()) {
+					word = window.getSelection()
+				}
+				var stringWord = word.toString()
+				stringWord = stringWord.replace(/\s/g, '')
+				this.participles = stringWord
+				if(word != '') {
+					this.showTagTools = true
+					this.tooltipLeft = x + e.clientX + this.$refs.arContent.scrollLeft
+					this.tooltipTop = y + e.clientY + this.$refs.arContent.scrollTop
+					//          console.log('aaa', this.$refs.arContent.scrollTop, e.clientX, e.clientY)
+					if(e.clientX >= 200) {
+						this.tooltipLeft = 200
+						this.tooltipTop = y + e.clientY + this.$refs.arContent.scrollTop
+					}
+				} else {
+					this.showTagTools = false
+				}
+				this.$store.dispatch("GET_WORDSPEECH", this.participles).then((res) => {
+					this.wordSpeech = ""
+					var rs = {
+						null: '未知词性',
+						n: '名词',
+						np: '作品',
+						nr: '人名',
+						ns: '地名',
+						nt: '机构',
+						ntc: '公司',
+						nts: '商标',
+						ntu: '学校',
+						nz: '专有名词',
+						v: '动词',
+						a: '形容词',
+						mq: '数量词',
+            fw: '违禁词'
+					}
+					var rcg = []
+					if(res == null) {
+						this.wordSpeech = "未知词性"
+					} else {
+						for(var index = 0; index < res.length; index++) {
+							var re = res[index]
+							var rc = rs[re]
+							rcg.push(rc)
+						}
+						this.wordSpeech = rcg.join('，')
+					}
+					for(var index = 0; index < rcg.length; index++) {
+						this.selectedTag(rcg[index])
+					}
+				})
+			},
+//      划词词性提交
+			commitWord() {
+				this.submiting = true
+				var form = {}
+				var speech = []
+				for(let t in this.activeTag) {
+					speech.push(this.tags[this.activeTag[t]])
+				}
+				form.word = this.participles
+				form.speech = speech
+				this.$store.dispatch("UPDATE_WORD", form).then((res) => {
+					this.submiting = false
+					this.showTagTools = false
+					this.activeTag = []
+					this.submiting = false
+				})
+				var form = {}
+				form.id = this.article.id
+				form.split = true
+				form.open = true
+				this.$store.dispatch('ENSURE_DETAIL', form)
+			},
+//      删除划词
+      delWord() {
+        this.$store.dispatch("GET_WORDSPEECH", this.participles).then((res) => {
+          this.wordSpeech = ""
+          this.submiting = true
+          var form = {}
+          form.word = this.participles
+          form.speech = null
+          form.del = "del"
+          this.$store.dispatch("UPDATE_WORD", form).then((res) => {
+            this.submiting = false
+            this.showTagTools = false
+            this.activeTag = []
+            this.submiting = false
+          })
+          var form = {}
+          form.id = this.article.id
+          form.split = true
+          form.open = true
+          this.$store.dispatch('ENSURE_DETAIL', form)
+        })
+      },
+//      添加标签
+      newTag() {
+        this.$store.dispatch("ADD_TAG", this.participles)
+        var form = {}
+        form.id = this.article.id
+        form.split = true
+        form.open = true
+        this.$store.dispatch('ENSURE_DETAIL', form)
+      },
+//      切词
+	 participlesbtn() {
+		var form = {}
+		form.id = this.article.id
+		form.split = !this.split
+		form.open = true
+		this.$store.dispatch('SHOULD_SPLIT_ARTICLE',!this.split)
+		this.$store.dispatch('ENSURE_DETAIL', form)
+	},
+//      词性标记色调
+     showWordColor(type){
+		this[type] = !this[type]
+      }
+},
+		components: {
+			LgButton,
+			LgCheckbox,
+			LgSwitch,
+      LgCheckboxGroup
+		}
+	}
+</script>
+<style>
+	label {
+		vertical-align: middle;
+	}
+
+	.detail {
+		/*max-width: 540px;*/
+		max-width: 41%;
+		position: fixed;
+		left: -100%;
+		width: 100%;
+		top: 60px;
+		background: #fff;
+		z-index: 100;
+		opacity: 1;
+		transition: left .4s, opacity .3s;
+		box-shadow: 3px 0px 21px rgba(0, 0, 0, .4);
+	}
+
+	.source,
+	.author,
+  .participles{
+		display: inline-block;
+	}
+  .participles{
+
+  }
+	.detail.open {
+		left: 0px;
+		opacity: 1;
+	}
+
+	.detail article.content {
+		overflow-y: auto;
+		overflow-x: hidden;
+		height: calc(100vh - 60px);
+		position: relative;
+	}
+
+	.detail h3 {
+		margin: 0.75rem 1rem;
+	}
+
+	.relativeAr {
+		position: relative;
+	}
+
+	.close {
+		position: absolute;
+		right: 10px;
+		top: 0px;
+		font-size: 24px;
+		z-index: 10;
+	}
+
+	.article-con {
+		text-indent: 2em;
+		margin-top: 1rem;
+	}
+
+	.article-con em {
+		background-color: #CCF5FD;
+		border-radius: 3px;
+		font-style: normal;
+	}
+
+	.content.compare {
+		max-height: calc((100vh - 60px)/2);
+		overflow: auto;
+		border-bottom: 6px solid #ddd;
+		padding-bottom: 10px;
+	}
+
+	.word {
+		border: 1px solid #dfdfe1;
+	}
+
+	.showTagTools {
+		position: absolute;
+		min-width: 300px;
+		background-color: rgb(255, 255, 255);
+		cursor: default;
+		box-shadow: rgba(0, 0, 0, 0.2) 2px 2px 0px 0px;
+		z-index: 2147483647;
+		white-space: nowrap;
+		font-family: "Microsoft Yahei", 微软雅黑, 宋体, Tahoma, Arial, Helvetica, STHeiti;
+		border-radius: 2px;
+		border-width: 1px;
+		border-style: solid;
+		border-image: initial;
+		border-color: rgba(0, 0, 0, 0.498039);
+		overflow: hidden;
+		transition: opacity 0.1s ease-in;
+		display: block;
+		opacity: 1;
+	}
+
+	.showTagTools p {
+		display: inline-block;
+		height: 30px;
+		line-height: 30px;
+		color: rgb(71, 71, 71);
+		font-size: 14px;
+		white-space: nowrap;
+		clear: none;
+		width: auto;
+		text-align: center;
+		text-indent: 0px;
+		margin: 0px;
+		padding: 0px 14px;
+	}
+
+	.showTagTools p:hover {
+		color: rgb(0, 0, 0);
+		background: rgb(239, 239, 239);
+	}
+
+	.header {
+		height: 30px;
+		line-height: 30px;
+		margin-bottom: 5px;
+		text-align: left;
+		position: relative;
+		font-size: 1.5em;
+		color: #333;
+		border-bottom: 1px solid #cccccc;
+	}
+
+	.header span {
+		display: inline-block;
+		height: 30px;
+		/*width: 145px;*/
+		line-height: 30px;
+		margin: 0;
+		font-size: 16px;
+		padding-left: 10px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.splitword {
+		width: 130px!important;
+		height: 26px;
+		padding: 0 0 0 5px;
+		vertical-align: text-top;
+		border: none;
+		font-size: 18px;
+	}
+
+	.wordspeech {
+		font-size: 14px!important;
+		position: absolute;
+		right: 30px;
+	}
+
+	.showTagTools ul {
+		margin: 0 -0.4375rem 5px;
+		padding: 5px 10px;
+		border-bottom: 1px solid #cccccc;
+	}
+
+	.showTagTools ul li {
+		float: left;
+		position: relative;
+		height: 30px;
+		line-height: 30px;
+		width: 20%;
+		padding: 0 0.1rem;
+		text-align: center;
+		list-style: none;
+		margin: 5px 0px;
+	}
+
+	.showTagTools ul li a {
+		display: block;
+		font-size: 12px;
+		border: 1px solid silver;
+	}
+
+	.showTagTools ul li a:hover {
+		border-color: #1f2d3d;
+	}
+
+	.showTagTools ul li.active a {
+		background: silver;
+		color: #fff;
+	}
+
+	.tagtoolsFooter {
+		height: 35px;
+	}
+
+	.tagtoolsFooter .text-center .button {
+		margin-bottom: 5px;
+	}
+
+	.hideparticipleslist {
+		display: none;
+	}
+
+	.hideparticipleslist label {
+		display: inline-block;
+		height: 22px;
+		line-height: 22px;
+	}
+
+	.hideparticipleslist label input {
+		margin: 0;
+		vertical-align: text-bottom;
+		margin-bottom: -2px;
+	}
+
+	.hideparticipleslist label label {
+		margin: 0;
+	}
+
+	.showparticipleslist {
+		display: inline-block;
+		margin-left: 10px;
+	}
+/*多选框颜色示例*/
+	.name span.lg-checkbox__label {
+		background-color: #ffbfcf;
+		padding: 2px 0px;
+		border-radius: 3px;
+	}
+
+	.place span.lg-checkbox__label {
+		background-color: #ffdc6b;
+		padding: 2px 0px;
+		border-radius: 3px;
+	}
+	.org span.lg-checkbox__label {
+		background-color: #08ff8e;
+		padding: 2px 0px;
+		border-radius: 3px;
+	}
+
+	.product span.lg-checkbox__label {
+		background-color: #dcb9ff;
+		padding: 2px 0px;
+		border-radius: 3px;
+	}
+  .fw span.lg-checkbox__label {
+    background-color: #ff0e30;
+    padding: 2px 0px;
+    border-radius: 3px;
+  }
+/*文章词性颜色*/
+  .article-con.row.nr div em.nr{
+    background-color: #ffbfcf;
+  }
+  .article-con.row.ns div em.ns{
+    background-color: #ffdc6b;
+  }
+  .article-con.row.nt div em.nt{
+    background-color: #08ff8e;
+  }
+  .article-con.row.np div em.np{
+    background-color: #dcb9ff;
+  }
+  .article-con.row.np div em.fw{
+    background-color: #ff0e30;
+  }
+  .border-style{
+    border-bottom: 2px dashed;
+  }
+  /*标签颜色*/
+  .article-con.row.tagFlag div em.tagFlag{
+    background: #f60 !important;
+    color: #ffffff;
+    padding: 3px 6px;
+  }
+  .tab, .tab ul{
+  display: flex !important;
+}
+.tab li{
+  font-size:1rem;
+}
+table tbody td, table tbody th {
+    padding: .5rem .625rem .625rem;
+    width: auto !important;
+    height: auto !important;
+}
+</style>
+
